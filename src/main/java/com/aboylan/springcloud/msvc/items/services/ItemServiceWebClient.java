@@ -4,13 +4,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 
+import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import com.aboylan.springcloud.msvc.items.models.Item;
+import com.aboylan.springcloud.msvc.items.models.Product;
 
+// @Primary
 @Service
 public class ItemServiceWebClient implements ItemService {
 
@@ -27,7 +32,8 @@ public class ItemServiceWebClient implements ItemService {
                 .uri("http://msvc-products")
                 .accept(MediaType.APPLICATION_JSON)
                 .retrieve()
-                .bodyToFlux(Item.class)
+                .bodyToFlux(Product.class)
+                .map(product -> new Item(product, new Random().nextInt(10) + 1))
                 .collectList()
                 .block();
     }
@@ -37,11 +43,16 @@ public class ItemServiceWebClient implements ItemService {
         Map<String, Long> params = new HashMap<>();
         params.put("id", id);
 
-        return Optional.ofNullable(this.client.build().get().uri("http://msvc-products/{}", params)
-                .accept(MediaType.APPLICATION_JSON)
-                .retrieve()
-                .bodyToMono(Item.class)
-                .block());
+        try {
+            return Optional.of(this.client.build().get().uri("http://msvc-products/{id}", params)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .bodyToMono(Product.class)
+                    .map(product -> new Item(product, new Random().nextInt(10) + 1))
+                    .block());
+        } catch (WebClientResponseException e) {
+            return Optional.empty();
+        }
     }
 
 }
